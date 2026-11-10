@@ -405,8 +405,15 @@ form {
 }
 .center {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template: auto minmax(0, 1fr) / minmax(0, 1fr);
+}
+.center > .canvas,
+.center > .comparison {
+  grid-area: 2 / 1;
+}
+.center:has(> .comparison) > .canvas {
+  visibility: hidden;
 }
 .canvas-head {
   background: var(--head);

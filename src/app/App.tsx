@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ReactFlowProvider, useReactFlow } from '@xyflow/react'
+import { ReactFlowProvider, useReactFlow, useStore } from '@xyflow/react'
 import {
   Workflow,
   PanelsTopLeft,
@@ -33,6 +33,7 @@ import campus from '../../examples/campus.json'
 import type { GraphDocument, GraphNode } from '../engine/graph.ts'
 import type { Algorithm } from '../engine/events.ts'
 import { Canvas } from './Canvas.tsx'
+import { placeNode } from './placement.ts'
 import {
   canDraw,
   changeWeighted,
@@ -79,6 +80,7 @@ function Studio() {
   const worker = useRef(new WorkerSlot()),
     file = useRef<HTMLInputElement>(null)
   const flow = useReactFlow()
+  const viewportReady = useStore((s) => s.panZoom !== null && !s.fitViewQueued)
   const total = run?.trace.events.length ?? 0,
     ready = Boolean(g.start && g.destination),
     drawable = canDraw(g)
@@ -164,16 +166,17 @@ function Studio() {
   }
   const add = useCallback(
     (x?: number, y?: number) => {
-      const box = document.querySelector('.canvas')?.getBoundingClientRect()
-      const offset = (g.nodes.length % 5) * 24
-      const center = box
-        ? flow.screenToFlowPosition({
-            x: box.left + box.width / 2 - 46 + offset,
-            y: box.top + box.height / 2 - 20 + offset,
-          })
-        : { x: 80, y: 80 }
-      const round = (v: number) => (prefs.snap ? Math.round(v / 16) * 16 : Math.round(v))
-      const n = nextNode(g, round(x ?? center.x), round(y ?? center.y))
+      const canvas = document.querySelector('.canvas')
+      if (!canvas || !viewportReady) return
+      const node = nextNode(g, 0, 0)
+      const point = x !== undefined && y !== undefined ? { x, y } : undefined
+      const position = placeNode(canvas, flow, g, node.id, prefs.snap, point)
+      if (!position) {
+        setTab('studio')
+        setNotice('No visible space for another node. Pan or zoom out and try again.')
+        return
+      }
+      const n = { ...node, ...position }
       if (
         edit(
           {
@@ -189,7 +192,7 @@ function Studio() {
         setTab('studio')
       }
     },
-    [g, flow, prefs.snap, edit],
+    [g, flow, prefs.snap, edit, viewportReady],
   )
   const nodeSave = useCallback(
     (id: string, n: GraphNode) => {
@@ -392,11 +395,17 @@ function Studio() {
               <ChevronDown />
             </summary>
             <div className="tool-pair">
-              <button disabled={!drawable} onClick={() => add()}>
+              <button disabled={!drawable || !viewportReady} onClick={() => add()}>
                 <CirclePlus />
                 Add node
               </button>
-              <button disabled={!drawable || g.nodes.length < 2} onClick={() => setModal('edge')}>
+              <button
+                disabled={!drawable || g.nodes.length < 2}
+                onClick={() => {
+                  setNotice('')
+                  setModal('edge')
+                }}
+              >
                 <GitBranch />
                 Add edge
               </button>
@@ -549,24 +558,24 @@ function Studio() {
               {g.nodes.length} nodes <b>·</b> {g.edges.length} edges
             </span>
           </div>
-          {tab === 'studio' ? (
-            <Canvas
-              invalidate={reset}
-              key={canvasKey}
-              graph={g}
-              prefs={prefs}
-              events={run?.trace.events}
-              step={step}
-              selection={selection}
-              select={select}
-              add={add}
-              move={move}
-              connect={connect}
-              example={sample}
-              pan={pan}
-              setPan={setPan}
-            />
-          ) : (
+          <Canvas
+            invalidate={reset}
+            key={canvasKey}
+            graph={g}
+            prefs={prefs}
+            events={run?.trace.events}
+            step={step}
+            selection={selection}
+            select={select}
+            add={add}
+            viewportReady={viewportReady}
+            move={move}
+            connect={connect}
+            example={sample}
+            pan={pan}
+            setPan={setPan}
+          />
+          {tab === 'compare' && (
             <Comparison
               rows={rows}
               run={() => request({ type: 'compare', graph: g })}

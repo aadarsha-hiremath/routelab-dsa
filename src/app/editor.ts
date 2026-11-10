@@ -1,5 +1,6 @@
 import { parseGraph } from '../engine/graph.ts'
 import type { GraphDocument, GraphNode, EdgeInput } from '../engine/graph.ts'
+import { edgeKey } from './playback.ts'
 
 export type Selection = { kind: 'node'; id: string } | { kind: 'edge'; index: number } | null
 export type Workspace = { name: string; graph: GraphDocument }
@@ -8,6 +9,15 @@ export const emptyWorkspace = (): Workspace => ({
   graph: { directed: false, weighted: true, nodes: [], edges: [] },
 })
 export const canDraw = (g: GraphDocument) => g.nodes.length <= 250 && g.edges.length <= 500
+export function firstUnusedEdge(g: GraphDocument) {
+  const used = new Set(g.edges.map((e) => edgeKey(e.from, e.to, g.directed)))
+  for (const { id: from } of g.nodes) {
+    for (const { id: to } of g.nodes) {
+      if (from !== to && !used.has(edgeKey(from, to, g.directed))) return { from, to }
+    }
+  }
+  return null
+}
 export function validate(input: unknown): GraphDocument {
   parseGraph(input)
   return input as GraphDocument

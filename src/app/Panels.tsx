@@ -16,6 +16,7 @@ import type { Run, Row } from './protocol.ts'
 import type { Algorithm } from '../engine/events.ts'
 import type { GraphDocument, GraphNode } from '../engine/graph.ts'
 import type { Selection } from './editor.ts'
+import { firstUnusedEdge } from './editor.ts'
 import { describeEvent } from './playback.ts'
 import type { Preferences } from './settings.ts'
 import { speeds, defaults } from './settings.ts'
@@ -158,6 +159,19 @@ export function EdgeForm({
   graph: GraphDocument
   save: (from: string, to: string, w: number) => void
 }) {
+  const pair = firstUnusedEdge(graph)
+  if (!pair)
+    return (
+      <>
+        <p>
+          Every available node pair is connected. Add a node or remove an edge to create another
+          connection.
+        </p>
+        <button className="primary" disabled>
+          Create edge
+        </button>
+      </>
+    )
   return (
     <form
       onSubmit={(e) => {
@@ -166,10 +180,10 @@ export function EdgeForm({
         save(String(f.get('from')), String(f.get('to')), Number(f.get('weight') ?? 1))
       }}
     >
-      {['from', 'to'].map((k, i) => (
+      {(['from', 'to'] as const).map((k, i) => (
         <label key={k}>
           {i ? 'To node' : 'From node'}
-          <select name={k} defaultValue={graph.nodes[i]?.id}>
+          <select name={k} defaultValue={pair[k]}>
             {graph.nodes.map((n) => (
               <option key={n.id} value={n.id}>
                 {n.id}

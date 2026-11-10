@@ -44,8 +44,13 @@ test('measure production canvas edits, dragging and trace scrubbing on a 12 by 1
       )!
     const times = []
     for (let i = 0; i < 10; i++) {
+      // Import and undo both refit the viewport. Measure editing once the tool is ready.
+      const add = button('Add node')
+      const deadline = performance.now() + 5000
+      while (add.disabled && performance.now() < deadline) await frame()
+      if (add.disabled) throw Error('Node placement did not become available')
       const start = performance.now()
-      button('Add node').click()
+      add.click()
       await frame()
       if (!document.querySelector('.counts')?.textContent?.includes('145 nodes'))
         throw Error('Node edit did not commit')

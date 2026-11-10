@@ -25,6 +25,7 @@ import type { GraphDocument } from '../engine/graph.ts'
 import type { SearchEvent } from '../engine/events.ts'
 import type { Selection } from './editor.ts'
 import { canDraw } from './editor.ts'
+import { snapGrid } from './placement.ts'
 import type { Preferences } from './settings.ts'
 import { edgeKey, indexTrace } from './playback.ts'
 
@@ -56,7 +57,6 @@ const VertexView = memo(function VertexView({ data, selected }: NodeProps<Vertex
 const types = { vertex: VertexView }
 const emptyEvents: readonly SearchEvent[] = []
 const fitOptions = { padding: 0.22, maxZoom: 1.15 }
-const snapGrid: [number, number] = [16, 16]
 type Props = {
   graph: GraphDocument
   prefs: Preferences
@@ -66,6 +66,7 @@ type Props = {
   invalidate: () => void
   select: (s: Selection) => void
   add: (x?: number, y?: number) => void
+  viewportReady: boolean
   connect: (a: string, b: string) => void
   move: (id: string, x: number, y: number) => void
   example: () => void
@@ -80,6 +81,7 @@ export const Canvas = memo(function Canvas({
   step,
   select,
   add,
+  viewportReady,
   connect,
   move,
   example,
@@ -345,7 +347,7 @@ export const Canvas = memo(function Canvas({
             Add a node to the canvas, or explore a sample graph to see the algorithms in action.
           </p>
           <div className="center-actions">
-            <button className="primary" onClick={() => add()}>
+            <button className="primary" disabled={!viewportReady} onClick={() => add()}>
               <Plus />
               Add node
             </button>

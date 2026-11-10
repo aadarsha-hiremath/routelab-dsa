@@ -2,6 +2,103 @@ import { test, expect, chromium } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { channel } from '../playwright.config.ts'
 
+test('places campus nodes visibly with clearance after zoom and pan, with grid and undo/redo', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Load example', exact: true }).click()
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
+  await page.getByLabel('Snap to grid').check()
+  await page.getByRole('button', { name: 'Close dialog' }).click()
+  const canvas = page.getByTestId('canvas'),
+    viewport = canvas.locator('.react-flow__viewport')
+  const transform = () => viewport.evaluate((el) => getComputedStyle(el).transform)
+  const beforeZoom = await transform()
+  await page.getByRole('button', { name: 'Zoom in', exact: true }).click()
+  await expect.poll(transform).not.toBe(beforeZoom)
+  await page.getByRole('button', { name: 'Pan tool', exact: true }).click()
+  const beforePan = await transform()
+  const view = (await canvas.boundingBox())!,
+    library = (await page.getByRole('group', { name: 'Node Library', exact: true }).boundingBox())!
+  const dx = view.x + view.width / 2 - library.x - library.width / 2,
+    dy = view.y + view.height / 2 - library.y - library.height / 2
+  const x = view.x + view.width / 3,
+    y = view.y + 90
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.mouse.move(x + dx, y + dy, { steps: 12 })
+  await page.mouse.up()
+  await expect.poll(transform).not.toBe(beforePan)
+  await page.getByRole('button', { name: 'Select tool', exact: true }).click()
+  const nodes = canvas.locator('.react-flow__node')
+  const positions = () =>
+    nodes.evaluateAll((els) => els.map((el) => (el as HTMLElement).style.transform))
+  const initial = await positions()
+  for (let i = 6; i <= 10; i++) {
+    if (i === 9) await page.getByRole('button', { name: 'Compare', exact: true }).click()
+    await page.locator('.sidebar').getByRole('button', { name: 'Add node' }).click()
+    await expect(nodes).toHaveCount(i)
+    await expect(page.getByLabel('Node ID', { exact: true })).toHaveValue('N' + i)
+    for (const axis of ['X', 'Y'])
+      expect(Number.isInteger(Number(await page.getByLabel(axis, { exact: true }).inputValue()) / 16)).toBe(true)
+    const box = (await nodes.last().boundingBox())!
+    expect(box.x).toBeGreaterThan(view.x)
+    expect(box.y).toBeGreaterThan(view.y)
+    expect(box.x + box.width).toBeLessThan(view.x + view.width)
+    expect(box.y + box.height).toBeLessThan(view.y + view.height)
+    for (const el of await canvas
+      .locator(
+        '.react-flow__node:not(:last-child),.canvas-tools,.canvas-legend,.react-flow__minimap',
+      )
+      .all()) {
+      const other = (await el.boundingBox())!
+      const separation = Math.max(
+        other.x - box.x - box.width,
+        box.x - other.x - other.width,
+        other.y - box.y - box.height,
+        box.y - other.y - other.height,
+      )
+      expect(separation).toBeGreaterThan(9)
+    }
+  }
+  const after = await positions()
+  expect(after.slice(0, 5)).toEqual(initial)
+  await page.getByRole('button', { name: 'Undo', exact: true }).click()
+  await expect(nodes).toHaveCount(9)
+  await page.getByRole('button', { name: 'Redo', exact: true }).click()
+  await expect.poll(positions).toEqual(after)
+})
+
+test('offers the unused reverse arc and explains a fully connected graph', async ({ page }) => {
+  await page.goto('/')
+  const graph = {
+    directed: true,
+    weighted: false,
+    nodes: [
+      { id: 'A', x: 0, y: 0 },
+      { id: 'B', x: 200, y: 0 },
+    ],
+    edges: [{ from: 'A', to: 'B' }],
+  }
+  await page
+    .getByLabel('Import graph file')
+    .setInputFiles({
+      name: 'pair.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(graph)),
+    })
+  const add = page.getByRole('button', { name: 'Add edge', exact: true }),
+    dialog = page.getByRole('dialog')
+  await add.click()
+  await expect(dialog.locator('[name="from"]')).toHaveValue('B')
+  await expect(dialog.locator('[name="to"]')).toHaveValue('A')
+  await dialog.getByRole('button', { name: 'Create edge' }).click()
+  await expect(page.locator('.counts')).toHaveText('2 nodes · 2 edges')
+  await add.click()
+  await expect(dialog.getByText(/every available node pair is connected/i)).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Create edge' })).toBeDisabled()
+})
+
 test('invalid edits preserve the graph and text editing protects the selection', async ({
   page,
 }) => {
@@ -9,6 +106,11 @@ test('invalid edits preserve the graph and text editing protects the selection',
   await page.getByRole('button', { name: 'Load example', exact: true }).click()
   await page.getByRole('button', { name: 'Add edge', exact: true }).click()
   const dialog = page.getByRole('dialog')
+  await expect(dialog.locator('[name="from"]')).toHaveValue('Library')
+  await expect(dialog.locator('[name="to"]')).toHaveValue('Garden')
+  // Override the valid default with the reverse of an existing undirected edge.
+  await dialog.locator('[name="from"]').selectOption('Courtyard')
+  await dialog.locator('[name="to"]').selectOption('Library')
   await dialog.getByRole('button', { name: 'Create edge' }).click()
   await expect(dialog.getByRole('alert')).toContainText('Duplicate edge')
   await page.keyboard.press('Escape')
