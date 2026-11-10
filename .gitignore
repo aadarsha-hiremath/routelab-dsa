@@ -10,3 +10,6 @@ coverage/
 *.tsbuildinfo
 .vscode/
 .idea/
+
+test-results/
+playwright-report/

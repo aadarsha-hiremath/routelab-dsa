@@ -1,28 +1,54 @@
 # RouteLab
 
-RouteLab is a graph-search studio for comparing the route an algorithm chooses, the weight of that route, and the work needed to find it. Phase 1 contains a framework-independent TypeScript engine and a small React workspace. The workspace starts empty. Open a graph file or explicitly load the campus example, choose an algorithm, and run it.
+RouteLab is an interactive graph-search studio built with React, TypeScript, and React Flow. Draw a graph, inspect the decisions made by four search algorithms, and compare the routes they return. Each session starts with an empty workspace.
 
-## Install and launch
+![RouteLab showing the Dijkstra route across the campus graph, with playback and search results](docs/graph-studio.png)
 
-Use Git, Node.js **24 LTS** (24.16 or newer in the 24.x line), and its bundled npm. CI uses the exact version in `.nvmrc`. Sign into GitHub with an account that has access to the private repository before cloning.
+## Install and launch on Windows
 
-```sh
-git clone https://github.com/aadarsha-hiremath/routelab-dsa.git
+Install Git for Windows and **Node.js 24 LTS** with npm. The project supports Node 24.16 or newer within 24.x. CI uses 24.22.2 from `.nvmrc`. The installers are available from [Git for Windows](https://git-scm.com/downloads/win) and the [Node 24.22.2 distribution](https://nodejs.org/dist/v24.22.2/). For a standard 64-bit Intel or AMD Windows PC, choose the x64 MSI.
+
+Open a new PowerShell window after installation. Clone using a GitHub account with access to the private repository. Phase 2 lives on its dedicated branch.
+
+```powershell
+git --version
+node --version
+npm.cmd --version
+git clone --branch codex/phase-2-graph-studio https://github.com/aadarsha-hiremath/routelab-dsa.git
 cd routelab-dsa
-npm ci
-npm run dev
+npm.cmd ci
+npm.cmd run dev
 ```
 
-Open the Local URL printed by Vite (normally <http://localhost:5173>). Press Ctrl+C to stop. For the production build and local preview:
+Open the Local URL printed by Vite, normally <http://localhost:5173>. Press Ctrl+C to stop. To serve the production bundle locally:
 
-```sh
-npm run build
-npm run preview
+```powershell
+npm.cmd run build
+npm.cmd run preview
 ```
 
-## Bring your own graph
+## Edit a graph
 
-Save a UTF-8 JSON document like this as `route.json` and choose **Open JSON file**. The example describes a one-way edge of cost 3. A larger editable example is in [examples/campus.json](examples/campus.json) and can be downloaded under **Graph file format** in the app.
+1. Choose **Add node**, or double-click empty canvas space. The first two new nodes fill the start and destination slots when those slots are empty. You can change either endpoint under **Search setup**, including using the same node for both.
+2. Drag nodes to reposition them. Connect the right handle of one node to the left handle of another, or use **Add edge** and choose both endpoints. New weighted edges default to 1. Undirected edges can be traversed either way.
+3. Select a node to edit its ID and coordinates in the inspector. **Apply node** updates incident edges and endpoint references together. Select an edge to edit its weight or delete it. Deleting a node removes its incident edges and clears affected endpoint selections.
+4. Toggle directed or weighted edges under **Graph options**. A direction change that would introduce duplicates is rejected. Removing non-unit weights requires confirmation. Undo restores the previous weights.
+5. Use the canvas toolbar to pan, zoom, or fit the graph. The minimap supports panning and zooming. Use the collapsible sidebar sections on desktop or **Tools** and **Inspector** on a narrow screen.
+6. Choose **Load campus example** to replace the graph explicitly. **Undo** can restore edits, imports, sample loads, and workspace clears. History holds up to 50 edits with a size budget for larger graphs. **Export JSON** saves the current graph to a file.
+
+## Run, play back and compare
+
+Choose an algorithm and both endpoints, then select **Run algorithm**. Search and JSON import run in Web Workers. The inspector reports the complete final route, actual cost, edge count, and expansions. The canvas starts at step zero so you can replay the decisions that produced the result.
+
+Use Play, Pause, Restart, single-step controls, or the timeline. Playback speed ranges from 0.5× to 8×. The execution log describes the current event and recent steps. Frontier, expanded nodes, examined edges, and reconstructed routes update at their recorded steps. The **S** and **D** badges identify endpoints. **Clear visualization** removes the recording while retaining the graph.
+
+Recordings stop at 10,000 events. **Partial recording** identifies a recorded prefix. The result still covers the complete search. Editing the graph invalidates results, cancels obsolete work, and resets playback.
+
+In **Compare**, choose **Compare all four**. Each row reports status, cost, hops, expanded nodes, and one elapsed search time on the same validated graph. Timings use the worker's monotonic clock and exclude parsing, worker startup, tracing, UI rendering, and playback. Sub-millisecond runs are sensitive to timer resolution and JIT warmup. Negative weights produce a per-algorithm error for Dijkstra and A*.
+
+## Import and export
+
+Choose **Import JSON** and select a UTF-8 file up to 2 MiB. An invalid import leaves your current graph intact. Export writes the complete editable document in the Phase 1 format, including coordinates, original edge order, and any configured endpoints. A sample is available in [examples/campus.json](examples/campus.json).
 
 ```json
 {
@@ -32,17 +58,27 @@ Save a UTF-8 JSON document like this as `route.json` and choose **Open JSON file
   "destination": "B",
   "nodes": [
     { "id": "A", "x": 0, "y": 0 },
-    { "id": "B", "x": 1, "y": 0 }
+    { "id": "B", "x": 220, "y": 0 }
   ],
   "edges": [{ "from": "A", "to": "B", "weight": 3 }]
 }
 ```
 
-- Both flags and both arrays are required. Node IDs are unique, nonblank, case-sensitive strings. Coordinates and weights must be finite JSON numbers. Coordinates are metadata.
-- Every edge references existing nodes. Weighted edges require a weight, including an explicit zero. Unweighted edges omit the field and have cost 1. Negative edges are valid for BFS and DFS. A single negative edge anywhere rules out Dijkstra and A*.
-- Self-loops and duplicate edges are rejected. A directed graph can have opposite arcs. In an undirected graph, specifying the reverse of an existing edge is a duplicate.
-- Isolated nodes, empty graphs, cycles, and disconnected components are supported by the model. The browser requires valid `start` and `destination` IDs in the file. Engine callers may set either endpoint per run. Edit the file and reopen it to change the graph.
-- Files stay in the browser and are limited to 2 MiB. Parsing and search run in a Web Worker. The workspace displays at most the first and last ten nodes of a long path, with an omission count. The engine returns the full route. **Clear workspace** or reload to start empty.
+Both flags and both arrays are required. IDs are unique, nonblank, case-sensitive strings. Coordinates and weights must be finite numbers. All edge references and supplied endpoints must exist. Imported endpoints are optional and can be set before searching. Self-loops and duplicate edges are rejected. Reverse arcs are distinct only in directed graphs. Unweighted documents omit edge weights. Additional fields are retained on import and export.
+
+## Keyboard and preferences
+
+| Action | Control |
+| --- | --- |
+| Move focus / activate a control | Tab, Shift+Tab / Enter or Space |
+| Select a focused node or edge | Enter or Space |
+| Remove the selected item | Delete outside text fields, menus and dialogs |
+| Undo / redo a graph edit | Ctrl+Z / Ctrl+Shift+Z or Ctrl+Y; Command is supported on macOS |
+| Toggle playback | Space with workspace focus |
+| Scrub a focused timeline | Arrow keys, Home or End |
+| Clear selection or dismiss a dialog | Escape |
+
+**Settings** persists theme (dark, light, system), playback speed, reduced motion, grid, snapping, and minimap visibility in browser local storage for this origin. Dark is the initial theme. The system theme follows OS changes. OS reduced-motion preferences also suppress transitions. **Reset preferences** restores defaults. If storage is blocked, the app reports that changes apply to the session. Graphs, history, and results are session-only. Export before closing or reloading.
 
 ## Search behavior
 
@@ -96,36 +132,34 @@ Let V be the number of nodes and E the number of adjacency entries (two per undi
 
 S counts all adjacency entries scanned across expansions and P counts heap insertions including the start. Reopening can make these much larger than E. Lazy heap updates can retain old entries. A trace adds O(L) event records for configured limit L, with the reconstructed path shared with the result. With tracing disabled, no event history accumulates.
 
-## Verify and benchmark
+## Verification and benchmarks
 
-```sh
-npm test
-npm run typecheck
-npm run build
-npm run bench
+Run from the checkout in PowerShell. Playwright uses installed system Chrome on standard Windows installations and its downloaded Chromium elsewhere.
+
+```powershell
+npm.cmd test
+npm.cmd run typecheck
+npm.cmd run build
+npx.cmd playwright install chromium
+npm.cmd run test:browser
+npm.cmd run bench
+npm.cmd run bench:studio
 ```
 
-Use `npm run test:watch` for local iteration. GitHub Actions performs a clean install, runs Vitest, and type-checks and builds on push and pull request.
+The engine suite includes a 20,000-node chain, equal-cost paths, A* reopening, and an independent Floyd–Warshall oracle. Studio tests cover editing transactions, undo/redo, bounded traces, comparison, preference decoding, and cancellation of obsolete worker replies. Production browser tests exercise pointer dragging and handle connections, keyboard deletion, playback, import/export, full browser restart persistence, mobile controls, and large-graph fallback. CI runs a clean install, Vitest, production build, and the Chromium browser suite.
 
-Tests include exact traversal and event expectations, graph validation, stable heap ordering, stale entries, A* reopening, a 20,000-node chain, and an independent Floyd–Warshall distance oracle for every pair on seeded directed and undirected graphs.
+The engine benchmark reports eleven timed runs after three warmups on open and weighted-barrier 100 × 100 grids. The studio benchmark uses a 144-node, 264-edge grid and a real Dijkstra recording. It measures editing and scrubbing from input dispatch through the second animation frame, and samples frame intervals during a scripted drag. These measurements include browser rendering and scheduling. They are machine-specific.
 
-The benchmark times complete engine searches with tracing disabled using a monotonic clock. It constructs two 100 × 100 grids outside the timed region: an open unit grid and a seeded weighted grid with barriers. Each row reports a median, minimum, and maximum over eleven measurements after three warmups, alongside the actual expanded count and route cost. Machine load, runtime, and hardware affect times.
-
-## Project layout
+## Structure and practical limits
 
 | Location | Responsibility |
 | --- | --- |
-| `src/engine/graph.ts` | Graph types, validation, adjacency construction and read operations |
-| `src/engine/search.ts` | Iterative traversals, shared weighted search, and result assembly |
-| `src/engine/min-heap.ts`, `events.ts` | Stable priority queue and bounded execution trace |
-| `src/app/`, `src/main.tsx` | React shell, worker protocol, local file handling and styles |
-| `examples/` | Downloadable campus graph |
-| `tests/` | Fixtures, graph and search tests, independent oracle |
-| `benchmarks/` | Reproducible performance harness |
-| `.github/workflows/` | CI workflow |
+| `src/engine/` | UI-independent graph validation, adjacency lists, four search algorithms, heap and event types |
+| `src/app/editor.ts`, `Canvas.tsx` | Validated editing transactions, bounded history, controlled React Flow canvas |
+| `src/app/protocol.ts`, `search.worker.ts` | Worker ownership, import, traced runs and comparison |
+| `src/app/playback.ts`, `Panels.tsx`, `App.tsx` | Indexed event history, inspector, settings, timeline and workspace |
+| `tests/`, `browser/`, `benchmarks/` | Engine and studio tests, production browser workflows and performance harnesses |
 
-## Phase boundary
-
-Phase 1 supports local JSON import and one search at a time. The browser keeps the current graph in memory for the session. Interactive editing, layout, animation and playback are reserved for a separately approved Phase 2 design. The engine provides immutable graph snapshots and bounded events for that work.
+The interactive canvas supports up to 250 nodes and 500 edges. Larger imports enter overview mode with the complete data available for search, comparison and export. Endpoint entry uses exact IDs on large graphs. Coordinates use canvas units. Closely spaced imported nodes can overlap and can be repositioned through the inspector. Browser timings describe this device and workload. Graphs use JavaScript number precision.
 
 [MIT License](LICENSE)
