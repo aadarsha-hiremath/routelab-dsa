@@ -1,0 +1,20 @@
+{
+  "directed": false,
+  "weighted": true,
+  "start": "Library",
+  "destination": "Observatory",
+  "nodes": [
+    { "id": "Library", "x": 0, "y": 0 },
+    { "id": "Courtyard", "x": 1, "y": 0 },
+    { "id": "Workshop", "x": 0, "y": 1 },
+    { "id": "Garden", "x": 1, "y": 1 },
+    { "id": "Observatory", "x": 2, "y": 1 }
+  ],
+  "edges": [
+    { "from": "Library", "to": "Courtyard", "weight": 2 },
+    { "from": "Courtyard", "to": "Observatory", "weight": 8 },
+    { "from": "Library", "to": "Workshop", "weight": 1 },
+    { "from": "Workshop", "to": "Garden", "weight": 2 },
+    { "from": "Garden", "to": "Observatory", "weight": 2 }
+  ]
+}
