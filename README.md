@@ -8,13 +8,13 @@ RouteLab is an interactive graph-search studio built with React, TypeScript, and
 
 Install Git for Windows using the installer for your processor. Install **Node.js 24 LTS** with npm. The project supports 24.16 or newer within 24.x. CI uses 24.22.2 from `.nvmrc`. For Intel or AMD 64-bit Windows, select the x64 Git installer and Node x64 MSI. [Git for Windows](https://git-scm.com/downloads/win) · [Node 24.22.2 downloads](https://nodejs.org/dist/v24.22.2/)
 
-If Node is already installed, check `node --version` and `where.exe node` in PowerShell. Keep a supported 24.x installation. If another project needs a different major version, use your existing version manager to select 24.22.2, or extract the official Windows Node ZIP and prepend its extracted directory to the current shell's `$env:Path`. Open a new terminal after using an installer. Clone with a GitHub account that has access to the private repository.
+If Node is already installed, check `node --version` and `where.exe node` in PowerShell. Keep a supported 24.x installation. If another project needs a different major version, use your existing version manager to select 24.22.2, or extract the official Windows Node ZIP and prepend its extracted directory to the current shell's `$env:Path`. Open a new terminal after using an installer. While this repository remains private, cloning requires GitHub access; after publication, anyone can clone it.
 
 ```powershell
 git --version
 node --version
 npm.cmd --version
-git clone --branch codex/phase-3-release-hardening https://github.com/aadarsha-hiremath/routelab-dsa.git
+git clone --branch main https://github.com/aadarsha-hiremath/routelab-dsa.git
 cd routelab-dsa
 npm.cmd ci
 npm.cmd run dev
@@ -179,5 +179,9 @@ The interactive canvas supports up to 250 nodes and 500 edges. Larger imports en
 - **PowerShell blocks an npm script or uses the wrong Node version.** Use `npm.cmd` and `npx.cmd`. Check `where.exe node`, select a supported Node 24.x installation and rerun `npm.cmd ci`.
 - **A previous workspace appears missing.** Reopen the same site address and port in the same browser profile. Dev and production preview use different ports by default. Use a JSON backup when moving between them. Wait for **Saved locally** before closing.
 - **A JSON file exceeds 2 MiB.** Export uses compact JSON when indentation would exceed the import limit. If the graph data itself exceeds the limit after edits, keep the full export and split or reduce a copy before importing.
+
+## Version and release notes
+
+The source package version is **0.3.0**. See the [v0.3.0 release notes](docs/RELEASE_NOTES_v0.3.0.md) for highlights, requirements, and limitations. Versioned GitHub tags and GitHub Releases are published separately; a repository commit is not itself a published GitHub Release.
 
 [MIT License](LICENSE)
