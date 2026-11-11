@@ -1,26 +1,26 @@
 # RouteLab
 
-RouteLab is an interactive graph-search studio built with React, TypeScript, and React Flow. Draw a graph, inspect the decisions made by four search algorithms, and compare the routes they return. Each session starts with an empty workspace.
+RouteLab is an interactive graph-search studio built with React, TypeScript, and React Flow. Draw a graph, replay the decisions made by four search algorithms, and compare the routes they return. First-time visitors start with an empty workspace. Returning visitors can restore their last saved graph.
 
 ![RouteLab showing the Dijkstra route across the campus graph, with playback and search results](docs/graph-studio.png)
 
 ## Install and launch on Windows
 
-Install Git for Windows and **Node.js 24 LTS** with npm. The project supports Node 24.16 or newer within 24.x. CI uses 24.22.2 from `.nvmrc`. The installers are available from [Git for Windows](https://git-scm.com/downloads/win) and the [Node 24.22.2 distribution](https://nodejs.org/dist/v24.22.2/). For a standard 64-bit Intel or AMD Windows PC, choose the x64 MSI.
+Install Git for Windows using the installer for your processor. Install **Node.js 24 LTS** with npm. The project supports 24.16 or newer within 24.x. CI uses 24.22.2 from `.nvmrc`. For Intel or AMD 64-bit Windows, select the x64 Git installer and Node x64 MSI. [Git for Windows](https://git-scm.com/downloads/win) · [Node 24.22.2 downloads](https://nodejs.org/dist/v24.22.2/)
 
-Open a new PowerShell window after installation. Clone using a GitHub account with access to the private repository. Phase 2 lives on its dedicated branch.
+If Node is already installed, check `node --version` and `where.exe node` in PowerShell. Keep a supported 24.x installation. If another project needs a different major version, use your existing version manager to select 24.22.2, or extract the official Windows Node ZIP and prepend its extracted directory to the current shell's `$env:Path`. Open a new terminal after using an installer. Clone with a GitHub account that has access to the private repository.
 
 ```powershell
 git --version
 node --version
 npm.cmd --version
-git clone --branch codex/phase-2-graph-studio https://github.com/aadarsha-hiremath/routelab-dsa.git
+git clone --branch codex/phase-3-release-hardening https://github.com/aadarsha-hiremath/routelab-dsa.git
 cd routelab-dsa
 npm.cmd ci
 npm.cmd run dev
 ```
 
-Open the Local URL printed by Vite, normally <http://localhost:5173>. Press Ctrl+C to stop. To serve the production bundle locally:
+Open the Local URL printed by Vite, normally <http://localhost:5173>. Press Ctrl+C to stop. To serve the production bundle locally, run these commands in the checkout.
 
 ```powershell
 npm.cmd run build
@@ -66,6 +66,16 @@ Choose **Import JSON** and select a UTF-8 file up to 2 MiB. An invalid import le
 
 Both flags and both arrays are required. IDs are unique, nonblank, case-sensitive strings. Coordinates and weights must be finite numbers. All edge references and supplied endpoints must exist. Imported endpoints are optional and can be set before searching. Self-loops and duplicate edges are rejected. Reverse arcs are distinct only in directed graphs. Unweighted documents omit edge weights. Additional fields are retained on import and export.
 
+## Automatic saving and recovery
+
+RouteLab saves the current document to IndexedDB after each committed edit, including a completed drag, import, undo or redo. **Saving** means a write is pending. **Saved locally** means it committed. The saved document includes its name, graph options, endpoints, coordinates, edge order, weights and additional JSON fields. Playback, results and undo history last for the current session.
+
+On your next visit, **Restore previous workspace** offers to restore the graph or discard it and start empty. Escape or Close preserves the saved copy. Choose **Review saved workspace** to return to that decision. **Clear workspace** removes the recovery copy when the write completes. You can still undo a clear during that session.
+
+![Recovery dialog showing the saved Campus paths graph and the restore and discard actions](docs/recovery.png)
+
+Recovery is local to this browser profile and site address, including the port. It provides no cloud synchronization. Clearing site data, private browsing or browser eviction can remove a saved graph. **Export JSON** makes a portable backup. If a save fails, export your work before closing. Retry transient write failures. If another tab saved first, export the current tab's edits and reload to choose which document to continue. A damaged or unsupported saved copy requires explicit discard.
+
 ## Keyboard and preferences
 
 | Action | Control |
@@ -78,7 +88,7 @@ Both flags and both arrays are required. IDs are unique, nonblank, case-sensitiv
 | Scrub a focused timeline | Arrow keys, Home or End |
 | Clear selection or dismiss a dialog | Escape |
 
-**Settings** persists theme (dark, light, system), playback speed, reduced motion, grid, snapping, and minimap visibility in browser local storage for this origin. Dark is the initial theme. The system theme follows OS changes. OS reduced-motion preferences also suppress transitions. **Reset preferences** restores defaults. If storage is blocked, the app reports that changes apply to the session. Graphs, history, and results are session-only. Export before closing or reloading.
+**Settings** saves theme (dark, light, system), playback speed, reduced motion, grid, snapping, and minimap visibility in local storage independently of graph recovery. Dark is the initial theme. System follows OS changes. OS reduced-motion preferences also suppress transitions. **Reset preferences** restores defaults. If a preference write fails, the app reports that the change applies to the session.
 
 ## Search behavior
 
@@ -148,7 +158,7 @@ npm.cmd run bench:studio
 
 The engine suite includes a 20,000-node chain, equal-cost paths, A* reopening, and an independent Floyd–Warshall oracle. Studio tests cover editing transactions, undo/redo, bounded traces, comparison, preference decoding, and cancellation of obsolete worker replies. Production browser tests exercise pointer dragging and handle connections, keyboard deletion, playback, import/export, full browser restart persistence, mobile controls, and large-graph fallback. CI runs a clean install, Vitest, production build, and the Chromium browser suite.
 
-The engine benchmark reports eleven timed runs after three warmups on open and weighted-barrier 100 × 100 grids. The studio benchmark uses a 144-node, 264-edge grid and a real Dijkstra recording. It measures editing and scrubbing from input dispatch through the second animation frame, and samples frame intervals during a scripted drag. These measurements include browser rendering and scheduling. They are machine-specific.
+The engine benchmark reports eleven timed runs after three warmups on open and weighted-barrier 100 × 100 grids. The studio benchmark measures edit, drag and scrub behavior on a 144-node grid, and import, save, playback, pan, zoom and renderer JS heap for a 250-node/500-edge graph and a dense 22-node/462-edge graph. Results depend on browser, hardware and workload. [Phase 3 measurements, release notes and review checklist](docs/release-readiness.md)
 
 ## Structure and practical limits
 
@@ -156,10 +166,18 @@ The engine benchmark reports eleven timed runs after three warmups on open and w
 | --- | --- |
 | `src/engine/` | UI-independent graph validation, adjacency lists, four search algorithms, heap and event types |
 | `src/app/editor.ts`, `Canvas.tsx` | Validated editing transactions, bounded history, controlled React Flow canvas |
+| `src/app/recovery.ts`, `useRecovery.ts` | Versioned local documents, transaction ordering and recovery decisions |
 | `src/app/protocol.ts`, `search.worker.ts` | Worker ownership, import, traced runs and comparison |
 | `src/app/playback.ts`, `Panels.tsx`, `App.tsx` | Indexed event history, inspector, settings, timeline and workspace |
 | `tests/`, `browser/`, `benchmarks/` | Engine and studio tests, production browser workflows and performance harnesses |
 
 The interactive canvas supports up to 250 nodes and 500 edges. Larger imports enter overview mode with the complete data available for search, comparison and export. Endpoint entry uses exact IDs on large graphs. Coordinates use canvas units. Closely spaced imported nodes can overlap and can be repositioned through the inspector. Browser timings describe this device and workload. Graphs use JavaScript number precision.
+
+## Troubleshooting
+
+- **Windows reports EPERM, EBUSY or a locked native dependency during install.** Stop this checkout's dev server, preview, test watcher and browser tests with Ctrl+C in their terminals. Close tools still using its build files, reopen PowerShell in the checkout and run `npm.cmd ci` again. A fresh clone in a separate writable directory can verify whether the original directory is still locked.
+- **PowerShell blocks an npm script or uses the wrong Node version.** Use `npm.cmd` and `npx.cmd`. Check `where.exe node`, select a supported Node 24.x installation and rerun `npm.cmd ci`.
+- **A previous workspace appears missing.** Reopen the same site address and port in the same browser profile. Dev and production preview use different ports by default. Use a JSON backup when moving between them. Wait for **Saved locally** before closing.
+- **A JSON file exceeds 2 MiB.** Export uses compact JSON when indentation would exceed the import limit. If the graph data itself exceeds the limit after edits, keep the full export and split or reduce a copy before importing.
 
 [MIT License](LICENSE)

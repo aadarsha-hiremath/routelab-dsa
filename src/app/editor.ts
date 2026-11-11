@@ -4,10 +4,13 @@ import { edgeKey } from './playback.ts'
 
 export type Selection = { kind: 'node'; id: string } | { kind: 'edge'; index: number } | null
 export type Workspace = { name: string; graph: GraphDocument }
-export const emptyWorkspace = (): Workspace => ({
+export const MAX_IMPORT_BYTES = 2 * 1024 * 1024
+// Edits create immutable snapshots. Remember the pristine/cleared snapshot across undo.
+const pristine: Workspace = {
   name: 'Untitled graph',
   graph: { directed: false, weighted: true, nodes: [], edges: [] },
-})
+}
+export const emptyWorkspace = (): Workspace => pristine
 export const canDraw = (g: GraphDocument) => g.nodes.length <= 250 && g.edges.length <= 500
 export function firstUnusedEdge(g: GraphDocument) {
   const used = new Set(g.edges.map((e) => edgeKey(e.from, e.to, g.directed)))

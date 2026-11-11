@@ -15,7 +15,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "bench": "node benchmarks/search.ts",
-    "test:browser": "playwright test studio.pw.ts",
+    "test:browser": "playwright test studio.pw.ts recovery.pw.ts",
     "bench:studio": "playwright test performance.pw.ts"
   },
   "dependencies": {

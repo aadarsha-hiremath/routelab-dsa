@@ -1,5 +1,136 @@
 import { test, expect } from '@playwright/test'
 
+test('canvas limits, dense search, viewport, playback and durable save measurements', async ({
+  page,
+  context,
+  browser,
+}) => {
+  await page.addInitScript(() => {
+    const put = IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put = function (value, key) {
+      if (key !== 'document') return put.call(this, value, key)
+      const begin = performance.now(),
+        result = put.call(this, value, key)
+      performance.measure('snapshot-put', { start: begin, end: performance.now() })
+      this.transaction.addEventListener(
+        'complete',
+        () => performance.measure('snapshot-durable', { start: begin, end: performance.now() }),
+        { once: true },
+      )
+      return result
+    }
+  })
+  await page.goto('/')
+  const cdp = await context.newCDPSession(page)
+  await cdp.send('Performance.enable')
+  const heap = async () =>
+    (await cdp.send('Performance.getMetrics')).metrics.find((m) => m.name === 'JSHeapUsedSize')!
+      .value
+  const initialHeap = await heap()
+  for (const shape of ['limit', 'dense'] as const) {
+    const count = shape === 'limit' ? 250 : 22
+    const nodes = Array.from({ length: count }, (_, i) => ({
+      id: 'V' + i,
+      x: (i % 18) * 130,
+      y: Math.floor(i / 18) * 80,
+    }))
+    const edges = nodes.flatMap((n, i) =>
+      Array.from({ length: shape === 'limit' ? 2 : count - 1 }, (_, j) => ({
+        from: n.id,
+        to: nodes[(i + j + 1) % count]!.id,
+        weight: j + 1,
+      })),
+    )
+    const doc = {
+      nodes,
+      edges,
+      directed: true,
+      weighted: true,
+      start: 'V0',
+      destination: 'V' + (count - 1),
+    }
+    const begin = performance.now()
+    await page
+      .getByLabel('Import graph file')
+      .setInputFiles({
+        name: shape + '.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(JSON.stringify(doc)),
+      })
+    await expect(page.getByRole('heading', { name: shape + '.json' })).toBeVisible()
+    await expect(page.getByLabel('Local save status')).toHaveText('Saved locally')
+    const importAndSaveMs = performance.now() - begin
+    await expect(page.locator('.counts')).toHaveText(count + ' nodes · ' + edges.length + ' edges')
+    await page.getByRole('button', { name: 'Run algorithm' }).click()
+    await expect(page.locator('.metrics div').filter({ hasText: 'Path cost' })).toHaveText(
+      'Path cost' + (count - 1),
+    )
+    const zoom = page.getByRole('button', { name: 'Zoom in', exact: true })
+    const zoomMs = await zoom.evaluate(async (el) => {
+      const start = performance.now()
+      ;(el as HTMLButtonElement).click()
+      await new Promise<void>((res) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => res())),
+      )
+      return performance.now() - start
+    })
+    await page.getByRole('button', { name: 'Pan tool' }).click()
+    const box = (await page.getByTestId('canvas').boundingBox())!
+    const transform = () =>
+      page.locator('.react-flow__viewport').evaluate((e) => (e as HTMLElement).style.transform)
+    const before = await transform(),
+      panStart = performance.now()
+    await page.mouse.move(box.x + 40, box.y + 100)
+    await page.mouse.down()
+    await page.mouse.move(box.x + 110, box.y + 135, { steps: 12 })
+    await page.mouse.up()
+    await expect.poll(transform).not.toBe(before)
+    const panMs = performance.now() - panStart
+    await page.getByLabel('Playback speed', { exact: true }).selectOption('8')
+    await page.getByRole('button', { name: 'Play', exact: true }).click()
+    const gaps = await page.evaluate(
+      () =>
+        new Promise<number[]>((resolve) => {
+          const times: number[] = []
+          let last = 0
+          function tick(t: number) {
+            if (last) times.push(t - last)
+            last = t
+            if (times.length === 60) resolve(times.sort((a, b) => a - b))
+            else requestAnimationFrame(tick)
+          }
+          requestAnimationFrame(tick)
+        }),
+    )
+    await page.getByRole('button', { name: 'Pause', exact: true }).click()
+    expect(Number(await page.getByRole('slider').inputValue())).toBeGreaterThan(0)
+    const timings = await page.evaluate(() =>
+      Object.fromEntries(
+        ['snapshot-put', 'snapshot-durable'].map((k) => [
+          k,
+          performance.getEntriesByName(k).at(-1)?.duration,
+        ]),
+      ),
+    )
+    console.log(
+      JSON.stringify({
+        shape,
+        browser: browser.version(),
+        nodes: count,
+        edges: edges.length,
+        importAndSaveMs,
+        zoomToSecondFrameMs: zoomMs,
+        scriptedPanMs: panMs,
+        playbackFrameMedianMs: gaps[30],
+        playbackFrameP95Ms: gaps[56],
+        mainPageJSHeapMiB: (await heap()) / 2 ** 20,
+        initialHeapMiB: initialHeap / 2 ** 20,
+        ...timings,
+      }),
+    )
+  }
+})
+
 test('measure production canvas edits, dragging and trace scrubbing on a 12 by 12 grid', async ({
   page,
   browser,
@@ -15,22 +146,20 @@ test('measure production canvas edits, dragging and trace scrubbing on a 12 by 1
     ...(i + side < nodes.length ? [{ from: n.id, to: 'V' + (i + side) }] : []),
   ])
   await page.goto('/')
-  await page
-    .getByLabel('Import graph file')
-    .setInputFiles({
-      name: 'grid.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from(
-        JSON.stringify({
-          directed: false,
-          weighted: false,
-          nodes,
-          edges,
-          start: 'V0',
-          destination: 'V143',
-        }),
-      ),
-    })
+  await page.getByLabel('Import graph file').setInputFiles({
+    name: 'grid.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(
+      JSON.stringify({
+        directed: false,
+        weighted: false,
+        nodes,
+        edges,
+        start: 'V0',
+        destination: 'V143',
+      }),
+    ),
+  })
   await expect(page.getByRole('heading', { name: 'grid.json' })).toBeVisible()
   await expect(page.locator('.counts')).toContainText('144 nodes')
   const editTimes = await page.evaluate(async () => {

@@ -40,6 +40,7 @@ import {
   commit,
   emptyWorkspace,
   initialHistory,
+  MAX_IMPORT_BYTES,
   nextNode,
   removeSelected,
   renameNode,
@@ -53,8 +54,11 @@ import { seek } from './playback.ts'
 import { Comparison, Dialog, EdgeForm, Inspector, NodeField, Settings, Toggle } from './Panels.tsx'
 import { defaults, readPrefs, speeds, storageKey } from './settings.ts'
 import type { Preferences } from './settings.ts'
+import { useRecovery } from './useRecovery.ts'
 
 function Studio() {
+  const recovery = useRecovery()
+  const { save, locked } = recovery
   const [history, setHistory] = useState(initialHistory),
     { name, graph: g } = history.present
   const [selection, setSelection] = useState<Selection>(null),
@@ -138,9 +142,11 @@ function Studio() {
   const replace = useCallback(
     (next: Workspace, sel: Selection = null, fit = false, validated = false) => {
       try {
+        if (locked) return false
         if (!validated) validate(next.graph)
         reset()
         setHistory((h) => commit(h, next))
+        void save(next === emptyWorkspace() ? null : next)
         select(sel)
         if (fit) refit((k) => k + 1)
         return true
@@ -149,7 +155,7 @@ function Studio() {
         return false
       }
     },
-    [reset, select],
+    [reset, select, locked, save],
   )
   const edit = useCallback(
     (graph: GraphDocument, sel: Selection = selection) => {
@@ -161,7 +167,9 @@ function Studio() {
     if (!(back ? history.past : history.future).length) return
     reset()
     select(null)
-    setHistory((h) => travel(h, back))
+    const next = travel(history, back)
+    setHistory(next)
+    void save(next.present === emptyWorkspace() ? null : next.present)
     refit((k) => k + 1)
   }
   const add = useCallback(
@@ -233,8 +241,10 @@ function Studio() {
     setMobile(null)
   }, [replace])
   function exportFile() {
+    const type = { type: 'application/json' }
+    const pretty = new Blob([JSON.stringify(g, null, 2)], type)
     const url = URL.createObjectURL(
-      new Blob([JSON.stringify(g, null, 2)], { type: 'application/json' }),
+      pretty.size <= MAX_IMPORT_BYTES ? pretty : new Blob([JSON.stringify(g)], type),
     )
     const a = document.createElement('a')
     a.href = url
@@ -288,7 +298,8 @@ function Studio() {
   useEffect(() => {
     const keys = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
-      if (modal || t.closest('input,select,textarea,[contenteditable=true],dialog')) return
+      if (locked || modal || t.closest('input,select,textarea,[contenteditable=true],dialog'))
+        return
       const command = e.ctrlKey || e.metaKey
       if (command && e.key.toLowerCase() === 'z') {
         e.preventDefault()
@@ -368,7 +379,7 @@ function Studio() {
             </button>
           ))}
         </nav>
-        <button className="settings-btn" onClick={() => setModal('settings')} title="Open settings">
+        <button className="settings-btn" onClick={() => setModal('settings')} aria-label="Settings" title="Open settings">
           <Settings2 />
           <span>Settings</span>
         </button>
@@ -383,7 +394,13 @@ function Studio() {
           Inspector
         </button>
       </div>
-      <main className="workgrid">
+      {recovery.candidate && !recovery.review && (
+        <div className="recovery-banner">
+          <span>Saved workspace awaiting review.</span>
+          <button onClick={() => recovery.setReview(true)}>Review saved workspace</button>
+        </div>
+      )}
+      <main className="workgrid" inert={locked}>
         <aside className="sidebar">
           <h2 className="rail-title">
             <SlidersHorizontal />
@@ -523,7 +540,7 @@ function Studio() {
                 Load campus example
               </button>
               <button
-                disabled={!g.nodes.length && !g.edges.length}
+                disabled={history.present === emptyWorkspace()}
                 onClick={() => replace(emptyWorkspace(), null, true)}
               >
                 <Trash2 />
@@ -531,18 +548,20 @@ function Studio() {
               </button>
             </div>
           </details>
-          <input
-            ref={file}
-            hidden
-            type="file"
-            accept=".json,application/json"
-            aria-label="Import graph file"
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              e.target.value = ''
-              if (f) request({ type: 'import', file: f })
-            }}
-          />
+          {!locked && (
+            <input
+              ref={file}
+              hidden
+              type="file"
+              accept=".json,application/json"
+              aria-label="Import graph file"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                e.target.value = ''
+                if (f) request({ type: 'import', file: f })
+              }}
+            />
+          )}
         </aside>
         <section className="center">
           <div className="canvas-head">
@@ -674,11 +693,63 @@ function Studio() {
           <b>·</b>
           {g.weighted ? 'Weighted' : 'Unweighted'}
         </span>
-        <span>
+        <span role="status" aria-label="Local save status">
           <FileJson />
-          Local workspace
+          {recovery.status}
         </span>
       </div>
+      {recovery.error && !recovery.review && (
+        <div className="recovery-banner" role="alert">
+          <span>{recovery.error}</span>
+          {recovery.retry && <button onClick={recovery.retry}>Retry save</button>}
+        </div>
+      )}
+      {recovery.review && recovery.candidate && (
+        <Dialog
+          title={
+            'workspace' in recovery.candidate
+              ? 'Restore previous workspace'
+              : 'Saved workspace unavailable'
+          }
+          close={() => recovery.setReview(false)}
+        >
+          {'workspace' in recovery.candidate ? (
+            <p>
+              <strong>{recovery.candidate.workspace.name}</strong> ·{' '}
+              {recovery.candidate.workspace.graph.nodes.length} nodes ·{' '}
+              {recovery.candidate.workspace.graph.edges.length} edges
+            </p>
+          ) : (
+            <p>{recovery.candidate.problem}</p>
+          )}
+          <p>
+            Recovery is local to this browser. Clearing site data can remove saved work. Export JSON
+            for a backup or to move it between devices.
+          </p>
+          {recovery.error && <p role="alert">{recovery.error}</p>}
+          <div className="recovery-actions">
+            {'workspace' in recovery.candidate && (
+              <button
+                className="primary"
+                disabled={recovery.status === 'Saving'}
+                onClick={() => {
+                  const workspace = recovery.accept()
+                  if (workspace) {
+                    reset()
+                    setHistory({ past: [], present: workspace, future: [] })
+                    refit((k) => k + 1)
+                  }
+                }}
+              >
+                Restore workspace
+              </button>
+            )}
+            <button disabled={recovery.status === 'Saving'} onClick={recovery.discard}>
+              Discard saved workspace and start empty
+            </button>
+          </div>
+        </Dialog>
+      )}
       {notice && (
         <div className="notice" role="alert">
           {notice}
@@ -693,7 +764,10 @@ function Studio() {
           close={() => setModal(null)}
         >
           {modal === 'settings' ? (
-            <Settings prefs={prefs} set={setPrefs} />
+            <>
+              <Settings prefs={prefs} set={setPrefs} />
+              {notice && <p role="alert">{notice}</p>}
+            </>
           ) : (
             <>
               <EdgeForm graph={g} save={connect} />
