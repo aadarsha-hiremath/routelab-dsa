@@ -1,12 +1,12 @@
-# Phase 3 release notes and review checklist
+# RouteLab v0.3.0 — Release readiness and measured performance
 
-The release-hardening branch adds local graph recovery to the interactive studio. Every committed edit schedules a versioned IndexedDB transaction. A save succeeds when the transaction completes. An older tab can keep editing or export its copy, but a revision check protects work another tab has saved or cleared. The graph engine, worker search algorithms and JSON document format are the Phase 2 implementations.
+RouteLab v0.3.0 includes local graph recovery in the interactive studio. Every committed edit schedules a versioned IndexedDB transaction. A save succeeds when the transaction completes. An older tab can keep editing or export its copy, but a revision check protects work another tab has saved or cleared. The graph engine, worker search algorithms and JSON document format are the Phase 2 implementations.
 
 Returning visitors choose whether to restore or discard. Dismissing the prompt keeps the saved graph. Preferences persist independently. This phase also restores keyboard focus to dialog openers, keeps Settings accessible on narrow screens, and writes compact backups when pretty-printing would push a valid import past 2 MiB.
 
 ## Verification
 
-- [x] Verified the private remote and Phase 2 merge `ff0fde01803de388152b5671d49ad04668b6c221` as the starting point.
+- [x] Verified the Phase 2 merge `ff0fde01803de388152b5671d49ad04668b6c221` as the Phase 3 starting point and Phase 3 merge `705ad245e73ec6aef5fa1a1d6b231e1873b54118` into `main`.
 - [x] Used an independent Windows checkout of the branch with the candidate source files and a clean `npm ci`. Ran the dev server, loaded Campus paths, saved it, type-checked the project and built the production bundle.
 - [x] Passed all 79 Vitest tests, including the 76 existing tests. Coverage includes the four search algorithms, a shortest-path oracle, unreachable destinations, a 20,000-node chain, deterministic traces, worker cancellation and stale replies.
 - [x] Passed 17 functional Playwright tests and both browser performance workflows. Tests covered placement after pan and zoom, snapping, undo/redo, unused edge defaults, weight conversion, deletion, import/export, comparison metrics and playback. The 3,000-node overview returned the full 2,999-hop route and allowed stepping at the 10,000-event recording limit.
@@ -14,9 +14,9 @@ Returning visitors choose whether to restore or discard. Dismissing the prompt k
 - [x] Exercised explicit clear, restore, dismiss, discard, blocked storage, invalid and future records, an injected quota failure, overlapping writes and concurrent tabs. A failed write retained the prior copy. Retrying saved the latest edit. Undo and redo after a clear produced the expected recovery state.
 - [x] Inspected the actual production screenshots of the studio and recovery dialog. Checked keyboard activation and focus return, long node labels, mobile drawers and Settings access at 320, 390 and 1440 CSS pixels. Sampled text contrast in both themes.
 - [x] Reviewed Git author and committer identities, tracked files and history, release screenshots, import validation and dependency advisories. The workflow grants read-only repository contents access.
-- [ ] Owner review and release decision.
+- [x] Owner manually reviewed and accepted the graph recovery, settings persistence, and core workflows. GitHub publication and release approval remain separate decisions.
 
-The branch's GitHub Actions CI runs an independent clean checkout and install, Vitest, strict TypeScript compilation, a production build and the functional Chromium workflows. The local benchmarks below have no timing threshold in CI. [CI run history for this branch](https://github.com/aadarsha-hiremath/routelab-dsa/actions/workflows/ci.yml?query=branch%3Acodex%2Fphase-3-release-hardening)
+GitHub Actions on `main` runs an independent clean checkout and install, Vitest, strict TypeScript compilation through the production build, and functional Chromium workflows. The local benchmarks below have no timing threshold in CI. [CI run history on main](https://github.com/aadarsha-hiremath/routelab-dsa/actions/workflows/ci.yml?query=branch%3Amain). The latest release-preparation workflow also passed on commit `fb9556abfb787564bf72c840262413de31bfad73`.
 
 ## Measured performance
 
