@@ -1,6 +1,6 @@
-# RouteLab v0.3.0 — Release notes (prepared, not published)
+# RouteLab v0.3.0 — Release notes
 
-**Status:** Prepared for owner review. No Git tag or GitHub Release has been published by this preparation step.
+These notes describe the v0.3.0 source-code milestone. Git tags and GitHub Releases are created separately from source commits.
 
 RouteLab is a browser-based graph-search and pathfinding studio built with React, TypeScript, and React Flow. It provides a real editable graph, algorithm traces, and side-by-side search comparisons.
 
@@ -17,7 +17,7 @@ RouteLab is a browser-based graph-search and pathfinding studio built with React
 ## Requirements and installation
 
 - Git and Node.js **24.16 or newer within 24.x** with npm. The checked-in `.nvmrc` uses **24.22.2**.
-- Modern browser. The application runs locally through Vite; this release preparation does **not** include a hosted website or standalone installer.
+- Modern browser. The application runs locally through Vite; v0.3.0 does **not** include a hosted website or standalone installer.
 
 On Windows PowerShell:
 
@@ -39,7 +39,7 @@ During Phase 3 verification, the implementation author reported:
 - A clean install, strict TypeScript check, and production build passed on Windows Node.js 24.22.2.
 - A point-in-time dependency audit reported **zero known vulnerabilities**.
 
-The owner separately tested and confirmed graph recovery and settings persistence. These results describe specific runs and environments, not guarantees on every machine. **Before publishing a release, check the latest GitHub Actions run on `main` after the version and documentation commits.**
+The owner separately tested and confirmed graph recovery and settings persistence. These results describe specific runs and environments, not guarantees on every machine. See the [current GitHub Actions results on `main`](https://github.com/aadarsha-hiremath/routelab-dsa/actions?query=branch%3Amain).
 
 ## Limitations
 
@@ -52,14 +52,3 @@ The owner separately tested and confirmed graph recovery and settings persistenc
 
 See [detailed release readiness and benchmark notes](release-readiness.md) for test coverage, measurements, and additional limitations.
 
-## Publication checklist
-
-- [x] Source changes from Phase 3 merged into `main`.
-- [x] README updated to install from `main`.
-- [x] Package and lockfile set to `0.3.0`.
-- [x] Release notes prepared.
-- [ ] Verify the **latest** CI workflow on `main` passes after preparation commits.
-- [ ] Owner explicitly approves public visibility and/or tag and GitHub Release.
-- [ ] If approved, publish tag `v0.3.0` from the intended release commit and enter these notes in the GitHub release.
-
-**Do not treat this document as proof that a GitHub Release has been published.**
