@@ -1,6 +1,6 @@
 # RouteLab
 
-RouteLab is an interactive graph-search studio built with React, TypeScript, and React Flow. Draw a graph, replay the decisions made by four search algorithms, and compare the routes they return. First-time visitors start with an empty workspace. Returning visitors can restore their last saved graph.
+RouteLab is an interactive graph-search studio built with React, TypeScript, and React Flow. Draw a graph, replay the decisions made by four search algorithms, and compare the routes they return. First-time visitors start with an empty workspace. Returning visitors can restore their last saved graph. RouteLab runs locally from a source checkout; v0.3.0 does not include a standalone installer or hosted website.
 
 ![RouteLab showing the Dijkstra route across the campus graph, with playback and search results](docs/graph-studio.png)
 
@@ -48,7 +48,7 @@ In **Compare**, choose **Compare all four**. Each row reports status, cost, hops
 
 ## Import and export
 
-Choose **Import JSON** and select a UTF-8 file up to 2 MiB. An invalid import leaves your current graph intact. Export writes the complete editable document in the Phase 1 format, including coordinates, original edge order, and any configured endpoints. A sample is available in [examples/campus.json](examples/campus.json).
+Choose **Import JSON** and select a UTF-8 file up to 2 MiB. An invalid import leaves your current graph intact. Export writes the complete editable document in the documented RouteLab JSON format, including coordinates, original edge order, and any configured endpoints. A sample is available in [examples/campus.json](examples/campus.json).
 
 ```json
 {
@@ -158,7 +158,7 @@ npm.cmd run bench:studio
 
 The engine suite includes a 20,000-node chain, equal-cost paths, A* reopening, and an independent Floyd–Warshall oracle. Studio tests cover editing transactions, undo/redo, bounded traces, comparison, preference decoding, and cancellation of obsolete worker replies. Production browser tests exercise pointer dragging and handle connections, keyboard deletion, playback, import/export, full browser restart persistence, mobile controls, and large-graph fallback. CI runs a clean install, Vitest, production build, and the Chromium browser suite.
 
-The engine benchmark reports eleven timed runs after three warmups on open and weighted-barrier 100 × 100 grids. The studio benchmark measures edit, drag and scrub behavior on a 144-node grid, and import, save, playback, pan, zoom and renderer JS heap for a 250-node/500-edge graph and a dense 22-node/462-edge graph. Results depend on browser, hardware and workload. [Phase 3 measurements, release notes and review checklist](docs/release-readiness.md)
+The engine benchmark reports eleven timed runs after three warmups on open and weighted-barrier 100 × 100 grids. The studio benchmark measures edit, drag and scrub behavior on a 144-node grid, and import, save, playback, pan, zoom and renderer JS heap for a 250-node/500-edge graph and a dense 22-node/462-edge graph. Results depend on browser, hardware and workload. [Performance measurements, test coverage and limitations](docs/release-readiness.md)
 
 ## Structure and practical limits
 
