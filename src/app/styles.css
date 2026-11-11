@@ -1045,6 +1045,21 @@ dialog::backdrop {
     font-size: 26px;
   }
 }
+@media (max-width: 380px) {
+  .top {
+    padding: 0 8px;
+    gap: 6px;
+  }
+  .top nav {
+    gap: 0;
+  }
+  .top nav button {
+    padding: 0 6px;
+  }
+  .top nav svg {
+    display: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *:before,
@@ -1081,4 +1096,26 @@ dialog::backdrop {
 }
 .vertex .destination-role {
   color: var(--violet);
+}
+.recovery-banner,
+.recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+.recovery-banner {
+  padding: 0.45rem 1rem;
+  background: var(--panel);
+  border-block: 1px solid var(--line);
+  font-size: 0.85rem;
+}
+.recovery-actions,
+dialog p + p {
+  margin-top: 0.8rem;
+}
+dialog p,
+.recovery-banner span,
+.inspector form p {
+  overflow-wrap: anywhere;
 }

@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef } from 'react'
+import { memo, useLayoutEffect, useRef } from 'react'
 import type { ReactNode, FormEvent } from 'react'
 import {
   X,
@@ -31,10 +31,14 @@ export function Dialog({
   children: ReactNode
 }) {
   const ref = useRef<HTMLDialogElement>(null)
-  useEffect(() => {
+  useLayoutEffect(() => {
     const d = ref.current!
+    const opener = document.activeElement
     d.showModal()
-    return () => d.close()
+    return () => {
+      d.close()
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus()
+    }
   }, [])
   return (
     <dialog ref={ref} onCancel={close} aria-label={title}>
